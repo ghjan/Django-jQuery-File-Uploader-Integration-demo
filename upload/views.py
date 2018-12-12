@@ -2,13 +2,15 @@
 
 # import the django settings
 import json
+from urllib.parse import urlencode
 
 from django.conf import settings
 # for generating json
 # for loading template
+from django.shortcuts import render
 from django.template import Context, loader
 # for csrf
-from django.http import HttpResponse, HttpResponseBadRequest, HttpResponseRedirect
+from django.http import HttpResponse, HttpResponseBadRequest, HttpResponseRedirect, JsonResponse
 # for os manipulations
 import os
 
@@ -163,13 +165,12 @@ def Upload(request):
             import urllib
 
             # url for deleting the file in case user decides to delete it
-            response_data["delete_url"] = request.path + "?" + urllib.urlencode(
+            response_data["delete_url"] = request.path + "?" + urlencode(
                 {"f": uid + "/" + os.path.split(filename)[1]})
             # specify the delete type - must be POST for csrf
             response_data["delete_type"] = "POST"
 
             # generate the json data
-            response_data = json.dumps([response_data])
             # response type
             response_type = "application/json"
 
@@ -183,10 +184,15 @@ def Upload(request):
             # so if the text/html is present, file was uploaded using jFrame because
             # that value is not in the set when uploaded by XHR
             if "text/html" in request.META["HTTP_ACCEPT"]:
-                response_type = "text/html"
+                content_type = 'text/html; charset=utf-8'
 
-            # return the data to the uploading plugin
-            return HttpResponse(response_data, mimetype=response_type)
+                response_data = json.dumps([response_data])
+
+                # return the data to the uploading plugin
+                return HttpResponse(response_data, content_type=content_type)
+            else:
+                return JsonResponse(response_data)
+
 
         else:  # file has to be deleted
 
@@ -213,9 +219,7 @@ def Upload(request):
             return HttpResponse(response_data, mimetype="application/json")
 
     else:  # GET
-        # load the template
-        t = loader.get_template("upload.html")
-        c = Context({
+        c = {
             # the unique id which will be used to get the folder path
             "uid": uuid.uuid4(),
             # these two are necessary to generate the jQuery templates
@@ -225,8 +229,23 @@ def Upload(request):
             # some of the parameters to be checked by javascript
             "maxfilesize": options["maxfilesize"],
             "minfilesize": options["minfilesize"],
-        })
-        # add csrf token value to the dictionary
-        c.update(csrf(request))
-        # return
-        return HttpResponse(t.render(c))
+        }
+        return render(request, 'upload/upload.html', c)
+
+        # # load the template
+        # t = loader.get_template("upload.html")
+        # c = Context({
+        #     # the unique id which will be used to get the folder path
+        #     "uid": uuid.uuid4(),
+        #     # these two are necessary to generate the jQuery templates
+        #     # they have to be included here since they conflict with django template system
+        #     "open_tv": u'{{',
+        #     "close_tv": u'}}',
+        #     # some of the parameters to be checked by javascript
+        #     "maxfilesize": options["maxfilesize"],
+        #     "minfilesize": options["minfilesize"],
+        # })
+        # # add csrf token value to the dictionary
+        # c.update(csrf(request))
+        # # return
+        # return HttpResponse(t.render(c))
