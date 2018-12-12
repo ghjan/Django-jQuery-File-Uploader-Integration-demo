@@ -1,17 +1,18 @@
 # imports
 
 # import the django settings
+import json
+
 from django.conf import settings
 # for generating json
-from django.utils import simplejson
 # for loading template
 from django.template import Context, loader
 # for csrf
-from django.core.context_processors import csrf
-# for HTTP response
 from django.http import HttpResponse, HttpResponseBadRequest, HttpResponseRedirect
 # for os manipulations
 import os
+
+from django.template.context_processors import csrf
 
 
 def Upload(request):
@@ -54,17 +55,16 @@ def Upload(request):
     #   and check validity late in the code
     options = {
         # the maximum file size (must be in bytes)
-        "maxfilesize": 2 * 2 ** 20, # 2 Mb
+        "maxfilesize": 2 * 2 ** 20,  # 2 Mb
         # the minimum file size (must be in bytes)
-        "minfilesize": 1 * 2 ** 10, # 1 Kb
+        "minfilesize": 1 * 2 ** 10,  # 1 Kb
         # the file types which are going to be allowed for upload
         #   must be a mimetype
         "acceptedformats": (
             "image/jpeg",
             "image/png",
-            )
+        )
     }
-
 
     # POST request
     #   meaning user has triggered an upload action
@@ -75,7 +75,7 @@ def Upload(request):
 
         # if 'f' query parameter is not specified
         # file is being uploaded
-        if not ("f" in request.GET.keys()): # upload file
+        if not ("f" in request.GET.keys()):  # upload file
 
             # make sure some files have been uploaded
             if not request.FILES:
@@ -116,7 +116,6 @@ def Upload(request):
             if file.content_type not in options["acceptedformats"]:
                 error = "acceptFileTypes"
 
-
             # the response data which will be returned to the uploader as json
             response_data = {
                 "name": file.name,
@@ -129,11 +128,10 @@ def Upload(request):
                 # append error message
                 response_data["error"] = error
                 # generate json
-                response_data = simplejson.dumps([response_data])
+                response_data = json.dumps([response_data])
                 # return response to uploader with error
                 # so it can display error message
                 return HttpResponse(response_data, mimetype='application/json')
-
 
             # make temporary dir if not exists already
             if not os.path.exists(temp_path):
@@ -166,12 +164,12 @@ def Upload(request):
 
             # url for deleting the file in case user decides to delete it
             response_data["delete_url"] = request.path + "?" + urllib.urlencode(
-                    {"f": uid + "/" + os.path.split(filename)[1]})
+                {"f": uid + "/" + os.path.split(filename)[1]})
             # specify the delete type - must be POST for csrf
             response_data["delete_type"] = "POST"
 
             # generate the json data
-            response_data = simplejson.dumps([response_data])
+            response_data = json.dumps([response_data])
             # response type
             response_type = "application/json"
 
@@ -190,7 +188,7 @@ def Upload(request):
             # return the data to the uploading plugin
             return HttpResponse(response_data, mimetype=response_type)
 
-        else: # file has to be deleted
+        else:  # file has to be deleted
 
             # get the file path by getting it from the query (e.g. '?f=filename.here')
             filepath = os.path.join(temp_path, request.GET["f"])
@@ -208,13 +206,13 @@ def Upload(request):
             # generate true json result
             # in this case is it a json True value
             # if true is not returned, the file will not be removed from the upload queue
-            response_data = simplejson.dumps(True)
+            response_data = json.dumps(True)
 
             # return the result data
             # here it always has to be json
             return HttpResponse(response_data, mimetype="application/json")
 
-    else: #GET
+    else:  # GET
         # load the template
         t = loader.get_template("upload.html")
         c = Context({
@@ -227,9 +225,8 @@ def Upload(request):
             # some of the parameters to be checked by javascript
             "maxfilesize": options["maxfilesize"],
             "minfilesize": options["minfilesize"],
-            })
+        })
         # add csrf token value to the dictionary
         c.update(csrf(request))
         # return
         return HttpResponse(t.render(c))
-
